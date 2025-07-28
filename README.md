@@ -63,7 +63,7 @@ RABBITMQ_HOST=rabbitmq
 RABBITMQ_USERNAME=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_QUEUE=jobs_queue
-MONGO_CONNECTION_STRING=mongodb://mongo:27017
+MONGO_CONNECTION_STRING=mongodb://host.docker.internal:27017
 MONGO_DATABASE=jobprocessor
 ```
 
@@ -71,7 +71,7 @@ MONGO_DATABASE=jobprocessor
 - `RABBITMQ_HOST`: Nome do serviço RabbitMQ (use `rabbitmq` para Docker Compose).
 - `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD`: Credenciais para autenticação no RabbitMQ (padrão: `guest`).
 - `RABBITMQ_QUEUE`: Nome da fila para tarefas (padrão: `jobs_queue`).
-- `MONGO_CONNECTION_STRING`: String de conexão com o MongoDB (use `mongodb://mongo:27017` para Docker Compose).
+- `MONGO_CONNECTION_STRING`: String de conexão com o MongoDB (use `mongodb://host.docker.internal:27017` para Docker Compose).
 - `MONGO_DATABASE`: Nome do banco de dados MongoDB (padrão: `jobprocessor`).
 
 ### 3. Inicie os Serviços
