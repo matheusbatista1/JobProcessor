@@ -106,13 +106,41 @@ docker ps
 
 Envie uma solicitação POST para `http://localhost:5000/api/jobs`:
 
+ℹ️ **Notas sobre Enums**
+
+- **`Type`** é um enum enviado como número no `POST` e retornado como texto no `GET`:
+
+| Valor | Nome           |
+|-------|----------------|
+| `1`   | EnviarEmail    |
+| `2`   | GerarRelatorio |
+
+🔁 **Exemplo de envio via POST**:
+```json
+{
+  "Type": 1,
+  "Payload": "{\"to\":\"example@email.com\",\"subject\":\"Teste\"}"
+}
+```
+
 ```bash
-curl -X POST http://localhost:5000/api/jobs -H "Content-Type: application/json" -d '{"Type":"EnviarEmail","Payload":"{\"to\":\"example@email.com\",\"subject\":\"Teste\"}"}'
+curl -X POST http://localhost:5000/api/jobs -H "Content-Type: application/json" -d '{"Type": 1,"Payload":"{\"to\":\"example@email.com\",\"subject\":\"Teste\"}"}'
 ```
 
 A resposta conterá o ID da tarefa criada.
 
 **Consultar o Status**:
+
+🔹 `Status` **(Status da Tarefa)**
+
+- Enum salvo e retornado como **número** na resposta da API.
+
+| Valor | Status           |
+|-------|------------------|
+| `1`   | Pendente         |
+| `2`   | EmProcessamento  |
+| `3`   | Concluido        |
+| `4`   | Erro             |
 
 Use o ID retornado para consultar o status via GET:
 
