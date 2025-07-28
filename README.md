@@ -1,6 +1,6 @@
 # JobProcessor
 
-**Um serviço robusto de processamento de tarefas em segundo plano** desenvolvido em **C#** com **ASP.NET Core**, **RabbitMQ** e **MongoDB**, totalmente containerizado com **Docker**. Este projeto foi criado para o **Desafio de Programação para Desenvolvedor Júnior C# / ASP.NET**, demonstrando uma implementação escalável e eficiente de uma API REST para gerenciamento de tarefas, processamento assíncrono com workers, controle de concorrência, retentativas e orquestração de serviços.
+**Um serviço robusto de processamento de tarefas em segundo plano** desenvolvido em **C#** com **ASP.NET Core**, **RabbitMQ** e **MongoDB**, totalmente containerizado com **Docker**. Este projeto foi criado para o **Desafio de Programação para Desenvolvedor C# / ASP.NET**, demonstrando uma implementação escalável e eficiente de uma API REST para gerenciamento de tarefas, processamento assíncrono com workers, controle de concorrência, retentativas e orquestração de serviços.
 
 ---
 
@@ -214,7 +214,7 @@ deploy:
 
 ## 📝 Notas para Avaliadores
 
-Este projeto foi desenvolvido para o **Desafio de Programação Desenvolvedor Júnior C# / ASP.NET** e demonstra:
+Este projeto foi desenvolvido para o **Desafio de Programação Desenvolvedor C# / ASP.NET** e demonstra:
 
 - **Estrutura e Organização**: Código organizado em camadas, com separação clara entre API, worker e infraestrutura.
 - **Boas Práticas**: Uso de padrões modernos de C#, logging, retentativas e containerização.
