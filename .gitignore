@@ -1,0 +1,33 @@
+# Arquivos e pastas do .NET
+bin/
+obj/
+*.csproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Arquivos de configuração sensíveis
+.env
+
+# Pastas de dependências
+node_modules/
+packages/
+
+# Arquivos de log
+*.log
+
+# Pastas de build do Docker
+docker-compose.yml.bak
+*.dockerignore
+
+# Outros arquivos temporários
+*.swp
+*.bak
+*.cache
+*.tmp
+
+# Pastas de ambiente de desenvolvimento
+.vs/
+.vscode/
+.idea/

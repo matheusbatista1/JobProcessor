@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-JobProcessor.JobsWorker-6f925714-1712-41b3-9a5f-fd75e0e94bc5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JobProcessor.Application\JobProcessor.Application.csproj" />
+    <ProjectReference Include="..\JobProcessor.Domain\JobProcessor.Domain.csproj" />
+    <ProjectReference Include="..\JobProcessor.Infra\JobProcessor.Infra.csproj" />
+  </ItemGroup>
+</Project>
