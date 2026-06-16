@@ -44,7 +44,7 @@ Siga os passos abaixo para rodar o projeto localmente usando **Docker Compose**:
 ### 1. Clone o Repositório
 
 ```bash
-git clone https://github.com/seu-usuario/JobProcessor.git
+git clone https://github.com/matheusbatista1/JobProcessor.git
 cd JobProcessor
 ```
 
@@ -249,4 +249,4 @@ Este projeto foi desenvolvido para o **Desafio de Programação Desenvolvedor C#
 - **Domínio de Tecnologias**: Integração com ASP.NET Core, RabbitMQ (`RabbitMQ.Client`) e MongoDB (`MongoDB.Driver`).
 - **Escalabilidade e Robustez**: Suporte a múltiplos workers, healthchecks e tratamento de erros.
 
-Para dúvidas, entre em contato via **[matheusbatista.tech@gmail.com]** ou abra uma issue no repositório.
+Para dúvidas, entre em contato via **[matheus.sbatista@outlook.com]** ou abra uma issue no repositório.
