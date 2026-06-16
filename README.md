@@ -1,252 +1,174 @@
 # JobProcessor
 
-**Um serviço robusto de processamento de tarefas em segundo plano** desenvolvido em **C#** com **ASP.NET Core**, **RabbitMQ** e **MongoDB**, totalmente containerizado com **Docker**. Este projeto foi criado para o **Desafio de Programação para Desenvolvedor C# / ASP.NET**, demonstrando uma implementação escalável e eficiente de uma API REST para gerenciamento de tarefas, processamento assíncrono com workers, controle de concorrência, retentativas e orquestração de serviços.
+A background task-processing service built in C# and ASP.NET Core. It exposes a small REST API for submitting jobs, stores them in MongoDB, and queues them on RabbitMQ so a pool of worker instances can run them asynchronously. Each job is tracked through a status lifecycle, retried automatically on failure, and the whole stack scales horizontally just by adding more workers.
 
----
+## What it does
 
-## 📋 Descrição
+- **Submit jobs over HTTP** — `POST /api/jobs` with a job type and a JSON payload. Each job is created with a GUID, persisted to MongoDB, and published to the queue.
+- **Async processing** — the API publishes work to a RabbitMQ queue; workers pick it up and run it independently of the request, processing one message at a time per worker (`BasicQos(prefetchCount=1)`).
+- **Status tracking** — every job moves through a defined lifecycle (`Pendente` → `EmProcessamento` → `Concluido` / `Erro`) and can be queried by id at any time.
+- **Automatic retries** — failed jobs are retried up to 3 times before being marked as errored. RabbitMQ connections are also retried on startup.
+- **Horizontal scaling** — multiple worker replicas consume from the same queue concurrently (3 by default), with RabbitMQ distributing work between them.
 
-O **JobProcessor** é um sistema para processamento de tarefas assíncronas, projetado para atender aos seguintes requisitos:
+## Tech stack
 
-- **Recebimento de Tarefas**: API REST para criar tarefas com ID (GUID), tipo (ex.: "EnviarEmail", "GerarRelatorio") e payload (JSON), armazenadas no MongoDB e publicadas em uma fila RabbitMQ.
-- **Processamento Assíncrono**: Múltiplos workers consomem tarefas da fila RabbitMQ, com suporte a retentativas (máximo de 3 tentativas) e controle de concorrência via `BasicQos`.
-- **Consulta de Status**: API para consultar o status das tarefas (Pendente, EmProcessamento, Concluído, Erro).
-- **Escalabilidade**: Suporte a múltiplos workers (3 réplicas por padrão) e uso de RabbitMQ para distribuição eficiente de tarefas.
-- **Containerização**: Deployment simplificado com Docker e orquestração via Docker Compose.
+| Layer         | Technology                         |
+| ------------- | ---------------------------------- |
+| Language      | C# (ASP.NET Core)                  |
+| API           | ASP.NET Core REST API              |
+| Messaging     | RabbitMQ (`rabbitmq:3-management`) |
+| Storage       | MongoDB (`mongo`)                  |
+| Validation    | FluentValidation                   |
+| Logging       | Structured logging via `ILogger`   |
+| Orchestration | Docker Compose                     |
 
----
+## Architecture
 
-## 🛠 Tecnologias Utilizadas
+The solution follows a layered design with clear separation of concerns and dependency injection throughout:
 
-- **Linguagem**: C# com ASP.NET Core
-- **Banco de Dados**: MongoDB (NoSQL)
-- **Fila**: RabbitMQ
-- **Containerização**: Docker e Docker Compose
-- **Outras Ferramentas**:
-  - ILogger para logging estruturado
-  - Injeção de dependência
-  - Tratamento de erros com FluentValidation
+- **`JobProcessor.Domain`** — core entities, enums, and domain contracts (job, status, type).
+- **`JobProcessor.Application`** — business logic, services, and validation.
+- **`JobProcessor.Infra`** — infrastructure integrations (MongoDB persistence, RabbitMQ messaging).
+- **`JobProcessor.API`** — REST endpoints for submitting and querying jobs.
+- **`JobProcessor.JobsWorker`** — background worker that consumes the queue and executes jobs.
 
----
+At runtime, the API persists each job to MongoDB and enqueues it on RabbitMQ; the workers consume the queue and update job state and results back in MongoDB. The API and workers stay decoupled, so either side can scale on its own. A health check is configured for RabbitMQ, and the API and workers wait for the broker to become healthy before starting.
 
-## 📦 Pré-requisitos
+```
+Client → API (POST /api/jobs) → MongoDB + RabbitMQ queue → Worker(s) → MongoDB
+                  ↑                                                      │
+                  └──────────── GET /api/jobs/{id} ─────────────────────┘
+```
 
-- **Docker** (com Docker Compose incluído)
-- **Git**
-- *(Opcional)*: .NET SDK 8.0 para desenvolvimento local sem Docker
+## Getting started
 
----
+### Prerequisites
 
-## 🚀 Como Executar
+- [Docker](https://www.docker.com/) and Docker Compose
+- Git
+- *(Optional)* .NET SDK 8.0, for local development without Docker
 
-Siga os passos abaixo para rodar o projeto localmente usando **Docker Compose**:
-
-### 1. Clone o Repositório
+### Run with Docker Compose
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/matheusbatista1/JobProcessor.git
 cd JobProcessor
-```
 
-### 2. Configure as Variáveis de Ambiente
-
-Copie o arquivo `.env.example` para `.env`:
-
-```bash
+# 2. Create your .env from the example and adjust values if needed
 cp .env.example .env
-```
 
-Edite o arquivo `.env` com as variáveis de ambiente necessárias:
-
-```env
-RABBITMQ_HOST=rabbitmq
-RABBITMQ_USERNAME=guest
-RABBITMQ_PASSWORD=guest
-RABBITMQ_QUEUE=jobs_queue
-MONGO_CONNECTION_STRING=mongodb://host.docker.internal:27017
-MONGO_DATABASE=jobprocessor
-```
-
-**Descrição das Variáveis**:
-- `RABBITMQ_HOST`: Nome do serviço RabbitMQ (use `rabbitmq` para Docker Compose).
-- `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD`: Credenciais para autenticação no RabbitMQ (padrão: `guest`).
-- `RABBITMQ_QUEUE`: Nome da fila para tarefas (padrão: `jobs_queue`).
-- `MONGO_CONNECTION_STRING`: String de conexão com o MongoDB (use `mongodb://host.docker.internal:27017` para Docker Compose).
-- `MONGO_DATABASE`: Nome do banco de dados MongoDB (padrão: `jobprocessor`).
-
-### 3. Inicie os Serviços
-
-Construa e inicie os contêineres (RabbitMQ, MongoDB, API e workers):
-
-```bash
+# 3. Build and start the whole stack (API, workers, RabbitMQ, MongoDB)
 docker-compose up --build -d
-```
 
-Verifique se os contêineres estão rodando:
-
-```bash
+# 4. Check the containers are running
 docker ps
 ```
 
-**Saída esperada**:
-- `jobprocessor-rabbitmq-1`
-- `jobprocessor-mongo-1`
-- `jobprocessor-jobprocessor-api-1`
-- Três réplicas do worker: `jobprocessor-jobprocessor-worker-1`, `-2`, `-3`
+Once everything is up:
 
-### 4. Acesse os Serviços
+| Service             | URL / Port                                          |
+| ------------------- | --------------------------------------------------- |
+| API                 | http://localhost:5000/api/jobs (port 8080 internally) |
+| RabbitMQ management | http://localhost:15672 (user/pass: `guest`/`guest`) |
+| RabbitMQ (AMQP)     | localhost:5672                                      |
+| MongoDB             | mongodb://localhost:27017                           |
 
-- **API**: Disponível em `http://localhost:5000/api/jobs`
-- **RabbitMQ Management**: Acesse em `http://localhost:15672` (usuário: `guest`, senha: `guest`)
-- **MongoDB**: Conecte-se via `mongodb://localhost:27017` (use ferramentas como MongoDB Compass, se desejar)
-
-### 5. Teste a API
-
-**Criar uma Tarefa**:
-
-Envie uma solicitação POST para `http://localhost:5000/api/jobs`:
-
-ℹ️ **Notas sobre Enums**
-
-- **`Type`** é um enum enviado como número no `POST` e retornado como texto no `GET`:
-
-| Valor | Nome           |
-|-------|----------------|
-| `1`   | EnviarEmail    |
-| `2`   | GerarRelatorio |
-
-🔁 **Exemplo de envio via POST**:
-```json
-{
-  "Type": 1,
-  "Payload": "{\"to\":\"example@email.com\",\"subject\":\"Teste\"}"
-}
-```
-
-```bash
-curl -X POST http://localhost:5000/api/jobs -H "Content-Type: application/json" -d '{"Type": 1,"Payload":"{\"to\":\"example@email.com\",\"subject\":\"Teste\"}"}'
-```
-
-A resposta conterá o ID da tarefa criada.
-
-**Consultar o Status**:
-
-🔹 `Status` **(Status da Tarefa)**
-
-- Enum salvo e retornado como **número** na resposta da API.
-
-| Valor | Status           |
-|-------|------------------|
-| `1`   | Pendente         |
-| `2`   | EmProcessamento  |
-| `3`   | Concluido        |
-| `4`   | Erro             |
-
-Use o ID retornado para consultar o status via GET:
-
-```bash
-curl http://localhost:5000/api/jobs/{id}
-```
-
-**Exemplo de resposta**:
-
-```json
-{
-  "Id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "Type": "EnviarEmail",
-  "Payload": "{\"to\":\"example@email.com\",\"subject\":\"Teste\"}",
-  "Status": "Concluido",
-  "RetryCount": 0
-}
-```
-
-**Monitorar Workers**:
-
-Verifique os logs de um worker para confirmar o processamento:
+You can follow a worker's logs to watch jobs being processed:
 
 ```bash
 docker logs jobprocessor-jobprocessor-worker-1
 ```
 
----
+## Configuration
 
-## 📂 Estrutura do Projeto
+Configuration is supplied via a `.env` file (see `.env.example`). These values are read by the API and the workers, and the RabbitMQ container uses them for its initial credentials.
 
-- **`JobProcessor.API/`**: API REST para criação e consulta de tarefas, com Dockerfile para containerização.
-- **`JobProcessor.JobsWorker/`**: Worker para processamento assíncrono de tarefas, com Dockerfile.
-- **`JobProcessor.Application/`**: Lógica de negócios e serviços da aplicação.
-- **`JobProcessor.Domain/`**: Entidades, enums e contratos do domínio.
-- **`JobProcessor.Infra/`**: Integrações com RabbitMQ, MongoDB e outros serviços externos.
-- **`docker-compose.yml`**: Configuração do Docker para orquestrar RabbitMQ, MongoDB, API e workers.
-- **`.env.example`**: Modelo de configurações de ambiente.
-- **`.gitignore`**: Exclui arquivos sensíveis (`.env`) e desnecessários (`.vs/`, `bin/`, `obj/`).
-- **`LICENSE`**: Licença MIT.
-- **`JobProcessor.sln`**: Solução do Visual Studio para o projeto.
+| Variable                  | Example value                          | Description                          |
+| ------------------------- | -------------------------------------- | ------------------------------------ |
+| `MONGO_CONNECTION_STRING` | `mongodb://host.docker.internal:27017` | MongoDB connection string            |
+| `MONGO_DATABASE`          | `JobProcessor`                         | Database name                        |
+| `RABBITMQ_HOST`           | `rabbitmq`                             | RabbitMQ host                        |
+| `RABBITMQ_USERNAME`       | `guest`                                | RabbitMQ username                    |
+| `RABBITMQ_PASSWORD`       | `guest`                                | RabbitMQ password                    |
+| `RABBITMQ_QUEUE`          | `jobs_queue`                           | Queue jobs are published to/consumed |
 
----
+> `.env` is excluded from version control — keep your real credentials out of the repo.
 
-## 🔧 Variáveis de Ambiente
+## API
 
-As variáveis são carregadas do arquivo `.env` e usadas pelos serviços `jobprocessor-api` e `jobprocessor-worker`. O arquivo `.env.example` fornece um modelo seguro. As variáveis incluem:
+### Create a job
 
-**RabbitMQ**:
-- `RABBITMQ_HOST`: Endereço do servidor RabbitMQ (padrão: `rabbitmq`).
-- `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD`: Credenciais para autenticação.
-- `RABBITMQ_QUEUE`: Nome da fila para tarefas.
+`POST /api/jobs`
 
-**MongoDB**:
-- `MONGO_CONNECTION_STRING`: URL de conexão com o MongoDB.
-- `MONGO_DATABASE`: Nome do banco de dados.
+`Type` is sent as a number, and `Payload` is a JSON string describing the work to perform.
 
----
+```json
+{
+  "Type": 1,
+  "Payload": "{\"to\":\"example@email.com\",\"subject\":\"Test\"}"
+}
+```
 
-## 📈 Escalabilidade
+```bash
+curl -X POST http://localhost:5000/api/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"Type": 1,"Payload":"{\"to\":\"example@email.com\",\"subject\":\"Test\"}"}'
+```
 
-- O projeto utiliza **RabbitMQ** para distribuir tarefas entre múltiplos workers, garantindo processamento concorrente sem conflitos.
-- **Três réplicas** do worker são configuradas por padrão (`deploy: replicas: 3` no `docker-compose.yml`).
-- Para escalar, ajuste o número de réplicas no `docker-compose.yml`:
+The response returns the id of the created job.
+
+**Job types**
+
+| Value | Type             | Meaning           |
+| ----- | ---------------- | ----------------- |
+| `1`   | `EnviarEmail`    | Send an email     |
+| `2`   | `GerarRelatorio` | Generate a report |
+
+> `Type` is submitted as a number on `POST` and returned as text on `GET`.
+
+### Query a job's status
+
+`GET /api/jobs/{id}`
+
+```bash
+curl http://localhost:5000/api/jobs/{id}
+```
+
+**Example response**
+
+```json
+{
+  "Id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "Type": "EnviarEmail",
+  "Payload": "{\"to\":\"example@email.com\",\"subject\":\"Test\"}",
+  "Status": "Concluido",
+  "RetryCount": 0
+}
+```
+
+**Job status**
+
+| Value | Status            | Meaning              |
+| ----- | ----------------- | -------------------- |
+| `1`   | `Pendente`        | Pending (queued)     |
+| `2`   | `EmProcessamento` | Currently processing |
+| `3`   | `Concluido`       | Completed            |
+| `4`   | `Erro`            | Failed after retries |
+
+## Scaling the workers
+
+The worker service runs with **3 replicas** by default (`deploy.replicas` in `docker-compose.yml`). To run more (or fewer) workers, adjust that value and restart the stack:
 
 ```yaml
 deploy:
   replicas: 5
 ```
 
----
+## License
 
-## ✅ Boas Práticas Implementadas
+Released under the [MIT License](LICENSE).
 
-- **Código**: Arquitetura em camadas (Domain, Application, Infra), injeção de dependência e logging estruturado com `ILogger`.
-- **Retentativas**: Sistema de retentativas para conexão com RabbitMQ (configurável via `appsettings.json`) e processamento de tarefas (máximo de 3 tentativas por job).
-- **Concorrência**: Configuração de `BasicQos(prefetchCount=1)` para processar uma mensagem por vez por worker, com RabbitMQ gerenciando a distribuição.
-- **Containerização**: Dockerfile para cada serviço e `docker-compose.yml` para orquestração, com healthchecks para RabbitMQ e MongoDB.
-- **Segurança**: Arquivo `.env` ignorado pelo `.gitignore`, com modelo fornecido em `.env.example`.
-- **Documentação**: README detalhado com instruções claras e exemplos de uso.
+## Contact
 
----
-
-## 🤝 Como Contribuir
-
-1. Faça um fork do repositório.
-2. Crie uma branch para sua feature: `git checkout -b feature/nova-funcionalidade`
-3. Commit suas mudanças: `git commit -m "Descrição da mudança"`
-4. Envie para o repositório remoto: `git push origin feature/nova-funcionalidade`
-5. Abra um pull request.
-
----
-
-## 📜 Licença
-
-**MIT License**
-
----
-
-## 📝 Notas para Avaliadores
-
-Este projeto foi desenvolvido para o **Desafio de Programação Desenvolvedor C# / ASP.NET** e demonstra:
-
-- **Estrutura e Organização**: Código organizado em camadas, com separação clara entre API, worker e infraestrutura.
-- **Boas Práticas**: Uso de padrões modernos de C#, logging, retentativas e containerização.
-- **Domínio de Tecnologias**: Integração com ASP.NET Core, RabbitMQ (`RabbitMQ.Client`) e MongoDB (`MongoDB.Driver`).
-- **Escalabilidade e Robustez**: Suporte a múltiplos workers, healthchecks e tratamento de erros.
-
-Para dúvidas, entre em contato via **[matheus.sbatista@outlook.com]** ou abra uma issue no repositório.
+Matheus Batista — matheus.sbatista@outlook.com — or open an issue on the repository.
